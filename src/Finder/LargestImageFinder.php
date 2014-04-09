@@ -63,12 +63,7 @@ class LargestImageFinder implements FinderInterface
             }
 
             $area = $geometry['width'] * $geometry['height'];
-
-            if ($area < 5000) {
-                continue;
-            }
-
-            if (max($geometry) / min($geometry) > 1.5) {
+            if ($area < 5000 || max($geometry) / min($geometry) > 1.5) {
                 continue;
             }
 
@@ -135,7 +130,6 @@ class LargestImageFinder implements FinderInterface
      */
     protected function getRemoteImageGeometry($url)
     {
-        $data = '';
         $geometry = false;
 
         $ctx = stream_context_create(array (
@@ -145,21 +139,36 @@ class LargestImageFinder implements FinderInterface
             ),
         ));
 
-        $fp = fopen($url, 'rb', false, $ctx);
+        if (!$fp = fopen($url, 'rb', false, $ctx)) {
+            return false;
+        }
+
         while ($data = fread($fp, 1024)) {
             if (!$imagick = $this->loadPartialImage($data)) {
                 continue;
             }
 
-            if (($geometry = $imagick->getImageGeometry())) {
-                $geometry = array (
-                    'width' => $geometry['width'],
-                    'height' => $geometry['height'],
-                );
+            if (($geometry = $this->getImageGeometry($imagick))) {
                 break;
             }
         }
         fclose($fp);
+
+        return $geometry;
+    }
+
+    /**
+     * @param Imagick $imagick
+     * @return type
+     */
+    protected function getImageGeometry(Imagick $imagick)
+    {
+        if (($geometry = $imagick->getImageGeometry())) {
+            $geometry = array (
+                'width' => $geometry['width'],
+                'height' => $geometry['height'],
+            );
+        }
 
         return $geometry;
     }
